@@ -127,6 +127,7 @@ GameObject:
   - component: {fileID: 114678228059764728}
   - component: {fileID: 114925112574333898}
   - component: {fileID: 114033007659545406}
+  - component: {fileID: 114067983209444874}
   - component: {fileID: 114302411385799640}
   m_Layer: 0
   m_Name: DecolourFlash
@@ -783,6 +784,18 @@ MonoBehaviour:
   m_Script: {fileID: -1675560866, guid: 45b809be76fd7a3468b6f517bced6f28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &114067983209444874
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1606745107634608}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adf69c2de51bd3c43bbd9bc22578ee08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _seed: 1
 --- !u!114 &114082428953620744
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -824,15 +837,14 @@ MonoBehaviour:
   Module: {fileID: 114228975318411870}
   BombInfo: {fileID: 114925112574333898}
   Audio: {fileID: 114033007659545406}
-  Buttons:
+  ButtonSels:
   - {fileID: 114563102855978908}
   - {fileID: 114439749763845198}
   ScreenText: {fileID: 102776704137877538}
   ButtonObjs:
   - {fileID: 1797212788503848}
   - {fileID: 1890073042647588}
-  - {fileID: 1797212788503848}
-  - {fileID: 1890073042647588}
+  RuleSeedable: {fileID: 114067983209444874}
 --- !u!114 &114386203912565062
 MonoBehaviour:
   m_ObjectHideFlags: 1
