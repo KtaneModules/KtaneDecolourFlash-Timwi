@@ -188,7 +188,8 @@ public class DecolourFlashScript : MonoBehaviour
         if (_currentPos[GetCurrentIndex()] == _goals[_stage - 1])
         {
             Debug.LogFormat("[Decolour Flash #{0}] Achieved goal #{1}.", _moduleId, _stage);
-            _stage++;
+            Audio.PlaySoundAtTransform("InputCorrect", transform);
+            _stage++; 
         }
         else
         {
@@ -237,6 +238,7 @@ public class DecolourFlashScript : MonoBehaviour
                 {
                     Debug.LogFormat("[Decolour Flash #{0}] Module solved.", _moduleId);
                     Module.HandlePass();
+                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
                     _stage++;
                 }
                 else if (opposite.Length == 1 && opposite[0].Q == 0 && opposite[0].R == 0)
