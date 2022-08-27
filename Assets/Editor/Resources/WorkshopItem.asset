@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Name: WorkshopItem
   m_EditorClassIdentifier: 
   WorkshopPublishedFileID: 2683371682
-  Title: Recolour Flash
+  Title: Decolour Flash
   Tags:
   - Regular Module
