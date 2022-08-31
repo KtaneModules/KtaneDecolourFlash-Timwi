@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using DecolourFlash;
 using UnityEngine;
 
@@ -29,9 +30,8 @@ public class DecolourFlashScript : MonoBehaviour
     private Coroutine _holdRoutine;
 
     private static readonly Color[] _colors = { Color.blue, Color.green, Color.red, Color.magenta, Color.yellow, Color.white };
-    private static readonly string[] _colorNames = { "blue", "green", "red", "magenta", "yellow", "white" };
 
-    private readonly Dictionary<Hex, ColorInfo> _hexes = new Dictionary<Hex, ColorInfo>();
+    private readonly Dictionary<Hex, ColourInfo> _hexes = new Dictionary<Hex, ColourInfo>();
 
     const float _flashSpeed = .75f;
 
@@ -80,7 +80,7 @@ public class DecolourFlashScript : MonoBehaviour
         };
         findGrid();
         for (var i = 0; i < hexes.Count; i++)
-            _hexes[hexes[i]] = new ColorInfo(_colors[grid[i] % 6], _colorNames[grid[i] % 6], (CFColour) (grid[i] / 6));
+            _hexes[hexes[i]] = new ColourInfo(_colors[grid[i] % 6], (CFColour) (grid[i] % 6), (CFColour) (grid[i] / 6));
 
         // Initialize module
         hexes = Hex.LargeHexagon(4).Where(h => h.Distance > 0).ToList();
@@ -103,7 +103,7 @@ public class DecolourFlashScript : MonoBehaviour
         _startPos.Add(rndHex3);
 
         _currentPos.AddRange(_startPos);
-        Debug.LogFormat("[Decolour Flash #{0}] Start position is {1}.", _moduleId, _startPos.Join(", "));
+        Debug.LogFormat("[Decolour Flash #{0}] Start position is {1}.", _moduleId, _startPos.Select(hex => string.Format("{0} {1}", _hexes[hex], hex)).Join(", "));
     }
 
     private bool adjacent(Hex hex1, Hex hex2)
@@ -116,24 +116,24 @@ public class DecolourFlashScript : MonoBehaviour
         if (_stage == 0)
         {
             var ix = (int) (Time.time / _flashSpeed) % 4;
-            ShowColor(ix == 3 ? (ColorInfo?) null : _hexes[_goals[ix]]);
+            ShowColor(ix == 3 ? (ColourInfo?) null : _hexes[_goals[ix]]);
             return;
         }
 
-        ShowColor(_stage == 5 ? (ColorInfo?) null : _hexes[_currentPos[GetCurrentIndex()]]);
+        ShowColor(_stage == 5 ? (ColourInfo?) null : _hexes[_currentPos[GetCurrentIndex()]]);
     }
 
-    private static int GetCurrentIndex()
+    private int GetCurrentIndex()
     {
-        // Returns the index within ‘_currentPos’ which is currently flashing.
-        return (int) (Time.time / _flashSpeed) % 3;
+        // Returns the index within ‘_goal/_currentPos’ which is currently flashing.
+        return (int) (Time.time / _flashSpeed) % (_stage == 0 ? 4 : 3);
     }
 
-    private void ShowColor(ColorInfo? colorInfo)
+    private void ShowColor(ColourInfo? colorInfo)
     {
         ScreenText.text = colorInfo == null ? "" : colorInfo.Value.Word.ToString().ToUpperInvariant();
         if (colorInfo != null)
-            ScreenText.color = colorInfo.Value.Color;
+            ScreenText.color = colorInfo.Value.Colour;
     }
 
     private KMSelectable.OnInteractHandler ButtonPress(int i)
@@ -189,7 +189,7 @@ public class DecolourFlashScript : MonoBehaviour
         {
             Debug.LogFormat("[Decolour Flash #{0}] Achieved goal #{1}.", _moduleId, _stage);
             Audio.PlaySoundAtTransform("InputCorrect", transform);
-            _stage++; 
+            _stage++;
         }
         else
         {
@@ -224,34 +224,48 @@ public class DecolourFlashScript : MonoBehaviour
                 StopCoroutine(_holdRoutine);
 
                 // Find the hex on the other side of the current triangle.
-                var curIx = GetCurrentIndex();
-                var curHex = _currentPos[curIx];
-                _currentPos.RemoveAt(curIx);
-                var opposite = Hex.LargeHexagon(4).Where(h => h != curHex && _currentPos.All(cp => h.Neighbors.Contains(cp))).ToArray();
-                if (opposite.Length == 0)
+                var result = MakeMove(_currentPos, GetCurrentIndex());
+                if (result == MoveResult.HitEdge)
                 {
                     Debug.LogFormat("[Decolour Flash #{0}] You attempted to go over the edge of the diagram. Strike!", _moduleId);
                     Module.HandleStrike();
-                    _currentPos.Insert(curIx, curHex);
                 }
-                else if (opposite.Length == 1 && opposite[0].Q == 0 && opposite[0].R == 0 && _stage == 4)
+                else if (result == MoveResult.HitCenter && _stage == 4)
                 {
                     Debug.LogFormat("[Decolour Flash #{0}] Module solved.", _moduleId);
                     Module.HandlePass();
                     Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
                     _stage++;
                 }
-                else if (opposite.Length == 1 && opposite[0].Q == 0 && opposite[0].R == 0)
+                else if (result == MoveResult.HitCenter)
                 {
                     Debug.LogFormat("[Decolour Flash #{0}] You attempted to hit the centre of the diagram before you are done. Strike!", _moduleId);
                     Module.HandleStrike();
-                    _currentPos.Insert(curIx, curHex);
                 }
-                else
-                    _currentPos.Add(opposite[0]);
                 break;
         }
     }
+
+    private static MoveResult MakeMove(List<Hex> position, int curIx)
+    {
+        var curHex = position[curIx];
+        position.RemoveAt(curIx);
+        var opposite = Hex.LargeHexagon(4).Where(h => h != curHex && position.All(cp => h.Neighbors.Contains(cp))).ToArray();
+        if (opposite.Length == 0)
+        {
+            position.Insert(curIx, curHex);
+            return MoveResult.HitEdge;
+        }
+        else if (opposite.Length == 1 && opposite[0].Q == 0 && opposite[0].R == 0)
+        {
+            position.Insert(curIx, curHex);
+            return MoveResult.HitCenter;
+        }
+        position.Add(opposite[0]);
+        return MoveResult.Success;
+    }
+
+    enum MoveResult { Success, HitEdge, HitCenter }
 
     private IEnumerator PressAnimation(int btn, bool pushIn)
     {
@@ -264,5 +278,155 @@ public class DecolourFlashScript : MonoBehaviour
             yield return null;
             elapsed += Time.deltaTime;
         }
+    }
+
+#pragma warning disable 0414
+    private readonly string TwitchHelpMessage = "!{0} press Yes/No | !{0} press Yes Blue Magenta | !{0} YBM [press Yes when the word Blue is shown in Magenta colour] | !{0} reset";
+#pragma warning restore 0414
+
+    private IEnumerator ProcessTwitchCommand(string command)
+    {
+        Match m;
+        if ((m = Regex.Match(command,
+            @"^\s*((?:press|hit|submit)\s+)?(?:(?<y>yes|y)|no|n)(?:\s*(?<w>blue|b|green|g|red|r|magenta|m|yellow|y|white|w)\s*(?<c>blue|b|green|g|red|r|magenta|m|yellow|y|white|w))?\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
+        {
+            int? colorIx = null;
+
+            if (m.Groups["w"].Success)
+            {
+                const string colourChars = "bgrmyw";
+                var word = colourChars.IndexOf(char.ToLowerInvariant(m.Groups["w"].Value[0]));
+                var colour = colourChars.IndexOf(char.ToLowerInvariant(m.Groups["c"].Value[0]));
+                colorIx = _stage == 0
+                    ? _goals.IndexOf(g => (int) _hexes[g].ColourIx == colour && (int) _hexes[g].Word == word)
+                    : _currentPos.IndexOf(g => (int) _hexes[g].ColourIx == colour && (int) _hexes[g].Word == word);
+                if (colorIx == -1)
+                {
+                    yield return "sendtochaterror That word/colour combination is not displayed on the module.";
+                    yield break;
+                }
+            }
+
+            yield return null;
+
+            if (colorIx != null)
+            {
+                // Wait a cycle to avoid the situation where the button is pressed on the correct colour combination but released on the next one (the handler runs on button release)
+                while (GetCurrentIndex() == colorIx.Value)
+                    yield return null;
+                while (GetCurrentIndex() != colorIx.Value)
+                    yield return null;
+            }
+
+            yield return new[] { ButtonSels[m.Groups["y"].Success ? 0 : 1] };
+        }
+        else if (Regex.IsMatch(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            yield return null;
+            yield return ButtonSels[1];
+            while (_holdRoutine != null)
+                yield return null;
+            yield return ButtonSels[1];
+        }
+    }
+
+    public IEnumerator TwitchHandleForcedSolve()
+    {
+        Debug.LogFormat("<> TP");
+
+        if (_stage == 0)
+        {
+            ButtonSels[0].OnInteract();
+            yield return new WaitForSeconds(.1f);
+            ButtonSels[0].OnInteractEnded();
+            yield return new WaitForSeconds(.1f);
+        }
+
+        while (_stage < 5)
+        {
+            var q = new Queue<QueueItem>();
+            var visited = new Dictionary<long, QueueItem>();
+            q.Enqueue(new QueueItem { GridPosition = _currentPos.ToArray(), Num = PosToNum(_currentPos), Parent = -1 });
+            var goalNum = -1L;
+            Hex goalHex = default(Hex);
+            while (q.Count > 0)
+            {
+                var item = q.Dequeue();
+                if (visited.ContainsKey(item.Num))
+                    continue;
+                visited[item.Num] = item;
+                if (_stage < 4 && item.GridPosition.Contains(_goals[_stage - 1]))
+                {
+                    goalNum = item.Num;
+                    break;
+                }
+
+                for (var moveIx = 0; moveIx < 3; moveIx++)
+                {
+                    var pos = item.GridPosition.ToList();
+                    var result = MakeMove(pos, moveIx);
+                    if (result == MoveResult.Success)
+                        q.Enqueue(new QueueItem { GridPosition = pos.ToArray(), HexPressed = item.GridPosition[moveIx], Num = PosToNum(pos), Parent = item.Num });
+                    else if (_stage == 4 && result == MoveResult.HitCenter)
+                    {
+                        goalNum = item.Num;
+                        goalHex = item.GridPosition[moveIx];
+                        break;
+                    }
+                }
+            }
+
+            var p = visited[goalNum];
+            var moves = new List<Hex>();
+            while (p.Parent != -1)
+            {
+                var parent = visited[p.Parent];
+                moves.Add(p.HexPressed);
+                p = parent;
+            }
+
+            for (int i = moves.Count - 1; i >= 0; i--)
+            {
+                var move = moves[i];
+                Debug.LogFormat("<> Current position: {0}; trying to make move: {1}", _currentPos.Join(", "), move);
+                var ix = _currentPos.IndexOf(move);
+                while (GetCurrentIndex() != ix)
+                    yield return true;
+                ButtonSels[1].OnInteract();
+                ButtonSels[1].OnInteractEnded();
+                yield return new WaitForSeconds(.1f);
+            }
+
+            var goalIx = _currentPos.IndexOf(_stage < 4 ? _goals[_stage - 1] : goalHex);
+            while (GetCurrentIndex() != goalIx)
+                yield return true;
+
+            ButtonSels[_stage < 4 ? 0 : 1].OnInteract();
+            ButtonSels[_stage < 4 ? 0 : 1].OnInteractEnded();
+            yield return new WaitForSeconds(.1f);
+        }
+    }
+
+    struct QueueItem
+    {
+        public Hex[] GridPosition;
+        public long Num;
+        public long Parent;
+        public Hex HexPressed;
+    }
+
+    private long PosToNum(IEnumerable<Hex> ci)
+    {
+        return ci.Aggregate(0L, (p, n) => p | (1L << _hexes[n].Index));
+    }
+
+    private List<Hex> NumToPos(long num)
+    {
+        var cis = new List<Hex>();
+        for (var bit = 0; bit < 36; bit++)
+            if ((num & (1L << bit)) != 0)
+                cis.Add(_hexes.First(kvp => kvp.Value.Index == bit).Key);
+        return cis;
     }
 }
