@@ -14,9 +14,9 @@ MonoBehaviour:
   id: DecolourFlashModule
   title: Decolour Flash
   author: Quinn Wuest
-  description: "Once a timid joint by mamma Theodore.\n\nModule created by Quinn Wuest
-    & Timwi\n\n[url=http://ktane.timwi.de/HTML/Decolour%20Flash.html]Manual HTML[/url]\n[url=http://ktane.timwi.de/PDF/Decolour%20Flash.pdf]Manual
-    PDF[/url]\r"
+  description: "Whether you think you can or think you can't, you may be spending
+    too much time thinking about it.\r\n\nModule created by Quinn Wuest & Timwi\n\n[url=http://ktane.timwi.de/HTML/Decolour%20Flash.html]Manual
+    HTML[/url]\n[url=http://ktane.timwi.de/PDF/Decolour%20Flash.pdf]Manual PDF[/url]\r"
   version: 1.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 4cae48a38cbbe654c8d135b3b6691179, type: 3}

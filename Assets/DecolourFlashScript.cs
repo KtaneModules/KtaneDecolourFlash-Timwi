@@ -281,45 +281,64 @@ public class DecolourFlashScript : MonoBehaviour
     }
 
 #pragma warning disable 0414
-    private readonly string TwitchHelpMessage = "!{0} press Yes/No | !{0} press Yes Blue Magenta | !{0} YBM [press Yes when the word Blue is shown in Magenta colour] | !{0} reset";
+    private readonly string TwitchHelpMessage = "!{0} press Yes/No | !{0} press Yes Blue Magenta | !{0} NBM,NYW,YRG [press No when the word Blue is shown in Magenta colour, then No on Yellow in White, then Yes on Red in Green] | !{0} reset";
 #pragma warning restore 0414
 
     private IEnumerator ProcessTwitchCommand(string command)
     {
         Match m;
+        var cmdRegex = @"(?:yes|y|no|n)(?:\s*(?:blue|b|green|g|red|r|magenta|m|yellow|y|white|w)\s*(?:blue|b|green|g|red|r|magenta|m|yellow|y|white|w))?";
         if ((m = Regex.Match(command,
-            @"^\s*((?:press|hit|submit)\s+)?(?:(?<y>yes|y)|no|n)(?:\s*(?<w>blue|b|green|g|red|r|magenta|m|yellow|y|white|w)\s*(?<c>blue|b|green|g|red|r|magenta|m|yellow|y|white|w))?\s*$",
+            string.Format(@"^\s*(?:(?:press|hit|submit)\s+)?({0}(?:,{0})*)\s*$", cmdRegex),
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).Success)
         {
-            int? colorIx = null;
+            var cmds = new List<TpCommandInfo>();
 
-            if (m.Groups["w"].Success)
+            foreach (var subcmd in m.Groups[1].Value.Split(','))
             {
-                const string colourChars = "bgrmyw";
-                var word = colourChars.IndexOf(char.ToLowerInvariant(m.Groups["w"].Value[0]));
-                var colour = colourChars.IndexOf(char.ToLowerInvariant(m.Groups["c"].Value[0]));
-                colorIx = _stage == 0
-                    ? _goals.IndexOf(g => (int) _hexes[g].ColourIx == colour && (int) _hexes[g].Word == word)
-                    : _currentPos.IndexOf(g => (int) _hexes[g].ColourIx == colour && (int) _hexes[g].Word == word);
-                if (colorIx == -1)
-                {
-                    yield return "sendtochaterror That word/colour combination is not displayed on the module.";
+                CFColour? colour = null, word = null;
+
+                var m2 = Regex.Match(subcmd,
+                    @"^\s*((?:press|hit|submit)\s+)?(?:(?<y>yes|y)|no|n)(?:\s*(?<w>blue|b|green|g|red|r|magenta|m|yellow|y|white|w)\s*(?<c>blue|b|green|g|red|r|magenta|m|yellow|y|white|w))?\s*$",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                if (!m2.Success)
                     yield break;
+                if (m2.Groups["w"].Success)
+                {
+                    const string colourChars = "bgrmyw";
+                    word = (CFColour) colourChars.IndexOf(char.ToLowerInvariant(m2.Groups["w"].Value[0]));
+                    colour = (CFColour) colourChars.IndexOf(char.ToLowerInvariant(m2.Groups["c"].Value[0]));
                 }
+                cmds.Add(new TpCommandInfo(m2.Groups["y"].Success, word, colour));
             }
 
             yield return null;
 
-            if (colorIx != null)
+            var numProcessed = 0;
+            foreach (var tpCmd in cmds)
             {
-                // Wait a cycle to avoid the situation where the button is pressed on the correct colour combination but released on the next one (the handler runs on button release)
-                while (GetCurrentIndex() == colorIx.Value)
-                    yield return null;
-                while (GetCurrentIndex() != colorIx.Value)
-                    yield return null;
-            }
+                if (tpCmd.Colour != null)
+                {
+                    var colorIx = _stage == 0
+                        ? _goals.IndexOf(g => _hexes[g].ColourIx == tpCmd.Colour.Value && _hexes[g].Word == tpCmd.Word.Value)
+                        : _currentPos.IndexOf(g => _hexes[g].ColourIx == tpCmd.Colour && _hexes[g].Word == tpCmd.Word.Value);
+                    if (colorIx == -1)
+                    {
+                        yield return string.Format("sendtochaterror The combination “{0} on {1}” is not displayed on the module ({2} commands were processed).",
+                            tpCmd.Word.Value.ToString().ToUpperInvariant(), tpCmd.Colour.Value.ToString().ToUpperInvariant(), numProcessed);
+                        yield break;
+                    }
 
-            yield return new[] { ButtonSels[m.Groups["y"].Success ? 0 : 1] };
+                    // Wait a cycle to avoid the situation where the button is pressed on the correct colour combination but released on the next one (the handler runs on button release)
+                    while (GetCurrentIndex() == colorIx)
+                        yield return null;
+                    while (GetCurrentIndex() != colorIx)
+                        yield return null;
+                }
+
+                yield return new[] { ButtonSels[tpCmd.YesButton ? 0 : 1] };
+                numProcessed++;
+            }
         }
         else if (Regex.IsMatch(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
