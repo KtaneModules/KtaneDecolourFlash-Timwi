@@ -352,8 +352,6 @@ public class DecolourFlashScript : MonoBehaviour
 
     public IEnumerator TwitchHandleForcedSolve()
     {
-        Debug.LogFormat("<> TP");
-
         if (_stage == 0)
         {
             ButtonSels[0].OnInteract();
@@ -408,7 +406,6 @@ public class DecolourFlashScript : MonoBehaviour
             for (int i = moves.Count - 1; i >= 0; i--)
             {
                 var move = moves[i];
-                Debug.LogFormat("<> Current position: {0}; trying to make move: {1}", _currentPos.Join(", "), move);
                 var ix = _currentPos.IndexOf(move);
                 while (GetCurrentIndex() != ix)
                     yield return true;
