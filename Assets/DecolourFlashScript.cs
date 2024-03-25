@@ -175,30 +175,37 @@ public class DecolourFlashScript : MonoBehaviour
 
     private void YesButtonPress()
     {
-        if (_stage == 0)
+        switch (_stage)
         {
-            NoButtonPress();
-            return;
-        }
+            case 0: // we are currently showing the goal hexes
+                _stage++;
+                return;
 
-        if (_stage == 5)
-            return;
+            case 4:
+                Debug.LogFormat("[Decolour Flash #{0}] Pressed ‘YES’ after all goals have already been visited. Strike!", _moduleId, _stage);
+                Module.HandleStrike();
+                return;
 
-        // Verify that the hex currently displayed is the current next goal
-        if (_currentPos[GetCurrentIndex()] == _goals[_stage - 1])
-        {
-            Debug.LogFormat("[Decolour Flash #{0}] Achieved goal #{1}.", _moduleId, _stage);
-            Audio.PlaySoundAtTransform("InputCorrect", transform);
-            _stage++;
-        }
-        else
-        {
-            Debug.LogFormat("[Decolour Flash #{0}] Pressed ‘YES’ on {1} (at {2}), but the current goal is {3} (at {4}). Strike!", _moduleId,
-                _hexes[_currentPos[GetCurrentIndex()]],
-                _currentPos[GetCurrentIndex()],
-                _hexes[_goals[_stage - 1]],
-                _goals[_stage - 1]);
-            Module.HandleStrike();
+            case 5: return;  // module already solved
+
+            default:
+                // Verify that the hex currently displayed is the current next goal
+                if (_currentPos[GetCurrentIndex()] == _goals[_stage - 1])
+                {
+                    Debug.LogFormat("[Decolour Flash #{0}] Achieved goal #{1}.", _moduleId, _stage);
+                    Audio.PlaySoundAtTransform("InputCorrect", transform);
+                    _stage++;
+                }
+                else
+                {
+                    Debug.LogFormat("[Decolour Flash #{0}] Pressed ‘YES’ on {1} (at {2}), but the current goal is {3} (at {4}). Strike!", _moduleId,
+                        _hexes[_currentPos[GetCurrentIndex()]],
+                        _currentPos[GetCurrentIndex()],
+                        _hexes[_goals[_stage - 1]],
+                        _goals[_stage - 1]);
+                    Module.HandleStrike();
+                }
+                break;
         }
     }
 
@@ -206,11 +213,11 @@ public class DecolourFlashScript : MonoBehaviour
     {
         switch (_stage)
         {
-            case 5: return;  // module already solved
-
             case 0: // we are currently showing the goal hexes
                 _stage++;
                 return;
+
+            case 5: return;  // module already solved
 
             default:
                 if (_holdRoutine == null)

@@ -1,0 +1,10 @@
+{
+  "name": "DecolourFlashModule-Editor",
+  "references": [
+    "DecolourFlashModule"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": []
+}
